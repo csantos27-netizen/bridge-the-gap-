@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bridge the Gap</title>
+<style>
+:root{--bg:#eef0ff;--fg:#1b1b3a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14122b;--fg:#e9e6ff}}
+:root[data-theme="dark"]{--bg:#14122b;--fg:#e9e6ff}
+body{margin:0;background:var(--bg);color:var(--fg);font:13px Verdana,"Trebuchet MS",sans-serif;display:flex;flex-direction:column;align-items:center;gap:14px;padding:14px}
+canvas{width:min(94vw,640px);image-rendering:pixelated;border:5px solid #1b1b3a;border-radius:16px;box-shadow:0 8px 24px rgba(74,40,180,.35);background:#ffd58a}
+.pad{display:flex;gap:30px;align-items:center;user-select:none;-webkit-user-select:none;touch-action:none}
+.dp{display:grid;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(3,48px);gap:3px}
+button{font:bold 16px Verdana,sans-serif;background:#fff;color:#1b1b3a;border:3px solid #1b1b3a;border-radius:12px;box-shadow:0 3px 0 #1b1b3a;touch-action:none}
+button:active{transform:translateY(2px);box-shadow:0 1px 0 #1b1b3a}
+#A{width:76px;height:76px;border-radius:50%;background:#ff4d8d;color:#fff;font-size:14px}
+#H{width:56px;height:56px;border-radius:50%;background:#6ad6a3;font-size:12px}
+p{margin:0;text-align:center;max-width:520px;opacity:.8;font-size:12px}
+#ov{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(20,18,43,.85);z-index:9;padding:12px;overflow:auto}
+.cd{background:var(--bg);color:var(--fg);border:5px solid #1b1b3a;border-radius:16px;padding:16px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:8px;max-height:94vh;overflow:auto;box-sizing:border-box}
+.cd h2{margin:0;text-align:center;font-size:18px}.cd p{max-width:none}
+.cd input,.cd textarea{font:14px Verdana,sans-serif;padding:8px;border:3px solid #1b1b3a;border-radius:10px;background:#fff;color:#1b1b3a}
+.cd button{font-size:13px;padding:8px 10px;touch-action:auto;text-align:left}
+.cd .on{background:#ff4d8d;color:#fff}.cd .sw{width:26px;height:26px;border-radius:50%;padding:0}.cd .sw.on{outline:3px solid #ff4d8d}
+.cd .sm{font-size:11px;opacity:.8}.rw{display:flex;flex-wrap:wrap;gap:4px;align-items:center}.er{color:#c0392b;min-height:14px;font-size:12px}
+.cd table{border-collapse:collapse;width:100%}.cd td{padding:4px 6px;border-bottom:1px solid rgba(128,128,160,.4)}
+</style></head><body>
+<canvas id="g" width="320" height="288"></canvas>
+<div class="pad"><div class="dp">
+<span></span><button data-k="u">W</button><span></span>
+<button data-k="l">A</button><span></span><button data-k="r">D</button>
+<span></span><button data-k="d">S</button><span></span></div>
+<button id="A">TALK</button><button id="H">HINT</button></div>
+<p>W A S D to move · E, Enter or Space to talk/answer · H for a hint from Pip</p><p><b>E R C I</b> = the 4 powers of government you collect: <b>E</b>numerated, <b>R</b>eserved, <b>C</b>oncurrent, <b>I</b>mplied</p>
+<div id="ov"></div>
+<script>addEventListener('error',e=>{const d=document.createElement('pre');d.style.cssText='color:#c0392b;white-space:pre-wrap;font-size:11px;max-width:94vw';d.textContent='Error: '+e.message+' (line '+e.lineno+')';document.body.appendChild(d)})</script>
+<script>
+const c=document.getElementById('g');let x=c.getContext('2d');x.scale(2,2);x.imageSmoothingEnabled=false;
+const NV='#1b1b3a',CR='#fff4dc',SD='#ffd58a',W=20,H=12;
+const FT='7px Verdana,"Trebuchet MS",sans-serif',FB='bold 7px Verdana,"Trebuchet MS",sans-serif';
+const TM=["####################","#..................#","#.BBBB..BBBB..BBBB.#","#.BBBB..BBBB..BBBB.#","#==================#","#..................#","#..##..........##..#","#..................#","#.BBBB..BBBB..BBBB.#","#.BBBB..BBBB..BBBB.#","#==================#","####################"];
+const BC={E:'#ffb000',R:'#ff4d6d',C:'#8a4dff',I:'#1aa7ff'};
+const NM={E:'ENUMERATED',R:'RESERVED',C:'CONCURRENT',I:'IMPLIED'};
+const ROOF=[['#ff8a3d','#ff4d6d','#ffb000'],['#19c3e6','#ff7ab0','#1aa7ff']];
+const TN=[
+{x:3,y:4,n:'School Board',col:'#ff8a3d',pg:["I'm on the school board. Let me show you how power flows down to your school.",["The state has the power to run schools and hands it to districts, so the school board decides local details like hiring and spending.",["State: reserved power","Delegates to districts","SCHOOL BOARD (local)","Your school"]],"Since LCFF in 2013, districts get extra money for low-income students, English learners and foster youth. Come to our meetings!"]},
+{x:9,y:4,n:'Governor',pw:'R',col:BC.R,pg:["I'm the Governor. Let me teach you about RESERVED powers.",["The Constitution doesn't list schools as a federal job. The 10th Amendment says leftover powers belong to the states.",["Constitution: 10th Amend.","STATE (reserved power)","School districts","Your school"]],"So California runs education. I propose the budget and can sign or veto school bills.","Why it matters: rich areas raise more from property taxes. State budget choices (LCFF) can even that out."]},
+{x:15,y:4,n:'Congress',pw:'E',col:BC.E,pg:["I'm in Congress. This is an ENUMERATED power: one listed right in the Constitution.",["Article I, Section 8 lets Congress tax and spend for the general welfare. That is how Title I works.",["Article I, Section 8","CONGRESS: tax + spend","Title I funds","Low-income schools"]],"Federal money is only a small slice of school funding, so state choices matter most. Title I still helps the poorest schools."]},
+{x:7,y:5,n:'State Assembly',pw:'C',col:BC.C,pg:["I'm in the State Assembly. Watch how CONCURRENT powers work: state and federal share them.",["Both levels can tax and both pay for schools. Neither one owns the job alone.",["FEDERAL: tax + fund","STATE: tax + fund","Both send money to","The same schools"]],"We draft the budget bills that split money across districts. That is where the fairness fights happen."]},
+{x:15,y:10,n:'US Dept. of Ed',pw:'I',col:BC.I,pg:["I'm at the U.S. Dept. of Education. This is IMPLIED power.",["It isn't written word for word. It is reasonably needed to carry out a listed power.",["Listed: tax + spend","Necessary & Proper Clause","IMPLIED: run programs","Title I rules + oversight"]],"Congress spends the money, so someone has to run and monitor the programs. That is us."]},
+{x:3,y:10,n:'EdTrust-West',col:'#19c3e6',pg:["I work at EdTrust-West in Oakland. We're a non-profit, so we hold no government power.",["We use research and advocacy to push officials toward fairer funding.",["Non-profit: no power","Research + advocacy","Pressure on officials","Fairer school funding"]],"We focus on low-income students and students of color."]},
+{x:9,y:7,n:'Parent',col:'#ff7ab0',pg:["I'm a parent here. Let me tell you how our funding gap began.","Serrano v. Priest (1971): California's top court ruled property-tax school funding unconstitutional. Then Prop 13 (1978) capped property taxes, so the state took over more control.","Individuals hold rights, not powers: we vote, speak at school board meetings, and contact legislators.","Legend says the shadows on the south road whisper a secret order..."]}
+];
+const TVM=["####################","#KKKKKKKK.....FF...#","#..................#","#..TT.....TT...TT..#","#..TT.....TT...TT..#","#..................#","#..................#","#..TT..........TT..#","#..TT..........TT..#","#..................#","#..................#","#########DD#########"];
+const TVN=[
+{x:10,y:5,n:'Quest Master',col:'#3b5bdb',k:'wiz',qg:1,pg:["Welcome, traveler! A great DISPARITY looms. Rich lands fund their schools well while poor lands fall behind.","First, RECRUIT 3 allies from this tavern. You can only bring 3, so choose wisely! Each one suffered under the Disparity, and their special moves will hit it hard!","Then speak with EVERY person in town. Each asks ONE question. Right answer: 20 knowledge. Wrong: only 5.","But beware! Miss TWO questions and the Disparity can NOT be beaten. You can only slip once! Press H in a quiz for Pip's hints.","Now go, brave one! The town waits beyond the tavern door."]},
+{x:5,y:2,n:'Barkeep Bram',col:'#c0392b',k:'keep',rc:1,mv:'Barrel Brawl',t:"BRAM hurls a giant barrel and a storm of mugs!",rx:"The Disparity: 'I'm soaked in my own budget!'",pg:["I fed this town for years. Then the Disparity struck: schools on our side lost lunch programs and after-school clubs.","Rich neighborhoods raise big money from pricey homes. Ours can't. My daughter's school lost its library.","I'm no hero, but I can sling a barrel! Join forces with me?"]},
+{x:14,y:5,n:'Sir Gareth',col:'#9aa0b0',k:'kn',rc:1,mv:'Holy Sword Slash',t:"SIR GARETH calls down a blazing sword from the heavens!",rx:"The Disparity: 'That blade cuts deep!'",pg:["I swore to guard every child crossing the east bridge. The Disparity left their schools with leaking roofs.","Across the bridge, kids get new tablets. On my side, textbooks are twenty years old. My sword cannot cut that gap.","But my blade can cut HIM. Let me fight beside you!"]},
+{x:6,y:9,n:'Lyra the Bard',col:'#d9a000',k:'bard',rc:1,mv:'Sonic Symphony',t:"LYRA sings the song of fairness! Music shakes the walls!",rx:"The Disparity: 'Make the music stop!'",pg:["I taught music at a poor-side school. The Disparity cut the band first. Forty students, then none.","Rich schools keep orchestras and choirs. Ours got silence. So I became a wandering bard.","Let my songs shake that bully's walls. Shall I join your party?"]},
+{x:13,y:8,n:'Thorin',col:'#2f6b3a',k:'dw',rc:1,mv:'Barbarian Rage',t:"THORIN flies into a RAGE and chops with his axe!",rx:"The Disparity: 'Rrgh! He won't stop!'",pg:["My clan digs the gold that fills the kingdom's vaults, yet our school got crumbs. The Disparity just laughed.","Our children study by candlelight with no counselors and no labs. My rage has burned for years!","Let me unleash it on that creature. Take me with you!"]},
+{x:17,y:10,n:'Shady Figure',col:'#444a5a',k:'hood',rc:1,mv:'Shadow Flurry',t:"THE SHADOW splits into clones and slashes from every side!",rx:"The Disparity: 'Where did they all come from?'",pg:["I once audited school budgets. I saw where the dollars went: the Disparity hid them in the richest districts.","When I spoke up, they silenced me. Now I live in the shadows.","Psst... learn the four powers in just the right order, and a golden door may open for you.","I know his weak points. Want a shadow on your side?"]},
+{x:2,y:6,n:'Kaito',col:'#ff8a1d',k:'sai',rc:1,mv:'Super Saiyan Blast',t:"KAITO powers up into a GOLDEN WARRIOR and fires a huge beam!",rx:"The Disparity: 'That power level is impossible!'",pg:["I trained to be a champion, but my school had no gym, no coach and no counselor. The Disparity said stay in your place.","So I trained alone every night, angry, until something inside me snapped awake.","My power is golden now. Let's end this gap together!"]},
+{x:18,y:2,n:'Zephyra the Wizard',col:'#c13bd6',k:'wiz',rc:1,mv:'Arcane Storm',t:"ZEPHYRA casts fire, ice, lightning and a meteor shower!",rx:"The Disparity: 'So many spells!'",pg:["I dreamed of studying science, but my school's lab closed when the Disparity drained our funds.","Rich academies have labs and telescopes. I learned from burnt scrolls and borrowed books.","I mastered every spell the hard way. Shall I come along?"]},
+{x:12,y:2,n:'Robin the Archer',col:'#2f8a3a',k:'arc',rc:1,mv:'Arrow Rain',t:"ROBIN darkens the sky with a rain of arrows!",rx:"The Disparity: 'Arrows from everywhere!'",pg:["I live on the far farmland. The Disparity cut our school buses, so kids walked miles each day. Some stopped coming.","I hunted to feed my family and my aim never failed. Nothing about the road to school was fair.","Now I'll aim at the one who cut the route. Count me in!"]}];
+let M=TVM,N=TVN,loc='tav';
+const QZ={
+'School Board':[["Who decides local school details like hiring and spending?",["The Governor","The school board","Congress"],1,"It's the local group your district elects."],["Since 2013, LCFF sends extra money for which students?",["Low-income & EL students","Only honor students","Only athletes"],0,"Think about who needs extra support."]],
+'Governor':[["The 10th Amendment gives leftover powers to whom?",["Congress","Schools alone","The states"],2,"Reserved for the level closer to home."],["What can the Governor do with school bills?",["Sign or veto them","Only watch","Rewrite the Constitution"],0,"The Governor can say yes or no."]],
+'Congress':[["Where does the Constitution list Congress's tax-and-spend power?",["10th Amendment","Article I, Section 8","School handbook"],1,"Enumerated means listed. Think Article one."],["Which federal program helps the poorest schools?",["Prop 13","LCFF","Title I"],2,"It starts with Title, and it's federal."]],
+'State Assembly':[["What are CONCURRENT powers?",["Shared by state & federal","Only the Governor's","Only for non-profits"],0,"Concurrent means running together."],["What do Assembly budget bills do?",["Close all schools","Divide money by district","Replace the Constitution"],1,"That's where the fairness fights happen."]],
+'US Dept. of Ed':[["Implied powers help carry out which kind of power?",["A listed power","A power of the people","No power at all"],0,"They back up something written down."],["Which clause supports implied powers?",["Third Amendment","Prop 13","Necessary & Proper"],2,"Needed and fitting. Two words joined by &."]],
+'EdTrust-West':[["What kind of group is EdTrust-West?",["Federal agency","Non-profit","State court"],1,"It holds no government power."],["How does it push for fairer funding?",["Collecting taxes","Passing laws","Research + advocacy"],2,"It studies facts and speaks up."]],
+'Parent':[["Which case ruled property-tax school funding unconstitutional?",["Serrano v. Priest","Prop 13","Title I"],0,"A 1971 court case with two names."],["What can individuals do to shape schools?",["Veto bills","Vote and speak up","Print money"],1,"We hold rights, not powers."]]};
+Object.keys(QZ).forEach(k=>QZ[k]=QZ[k].slice(0,1));
+const MK=Object.values(QZ).reduce((a,q)=>a+q.length,0)*20;
+const B={E:0,R:0,C:0,I:0},F={p:0,t:0};
+let mode='ui',pg=[],pi=0,cur=null,toast=0,t1='',t2='';
+let X=10,Y=9,dx=0,dy=0,pr=0,fc=0;const k={u:0,d:0,l:0,r:0};
+const cnt=()=>Object.values(B).reduce((a,b)=>a+b,0);
+const KM={arrowup:'u',w:'u',arrowdown:'d',s:'d',arrowleft:'l',a:'l',arrowright:'r',d:'r'};
+function wrap(t,w){const ws=t.split(' ');let l=[],s='';x.font=FT;for(const q of ws){const z=s?s+' '+q:q;if(x.measureText(z).width>w&&s){l.push(s);s=q}else s=z}l.push(s);return l}
+function free(a,b){if(a<0||b<0||a>=W||b>=H)return 0;const t=M[b][a];if(loc=='town'&&a==19&&b==5&&portal)return 1;if(t=='D'){if(!quest){toast=90;t1='QUEST MASTER:';t2='Talk to me first!'}return quest}if('#BTKF'.includes(t))return 0;return !N.some(n=>n.x==a&&n.y==b)}
+function press(){
+ if(mode=='title'){mode='walk';if(!T0)T0=Date.now();return}
+ if(mode=='walk'&&!dx&&!dy){const v=[[0,-1],[1,0],[0,1],[-1,0]][fc],n=N.find(n=>n.x==X+v[0]&&n.y==Y+v[1]);if(n){cur=n;n.t=1;pi=0;
+  pg=n.pg;if(n.rc){if(RC.length>=3&&!n.rec)pg=["Your party is full! You can only bring 3 allies into the fight. Good luck out there!"];else if(n.c)pg=["Ready to join the fight against the Disparity?"];n.c=1}else if((n.c||0)>=2)pg=["You have exhausted my text."];else n.c=(n.c||0)+1;mode='talk'}return}
+ if(mode=='talk'){if(++pi>=pg.length){
+  if(cur.pw&&!B[cur.pw]){B[cur.pw]=1;seq+=cur.pw;secret=bossDone&&seq=='ERCI';chk()}
+  if(cur.qg&&!quest){quest=1;PX=X;PY=Y;pxf=X*16;pyf=Y*16;t1='QUEST ACCEPTED!';t2='Pip the nerd joins you';toast=200}
+  if(QZ[cur.n]&&!cur.qd){qi=0;qs=0;qst=0;hint='';mode='quiz';return}
+  if(cur.rc&&!cur.rec&&RC.length<3){mode='rec';rs=0;return}
+  mode='walk'}return}
+ if(mode=='rec'){recPress();return}
+ if(mode=='quiz'){quizPress();return}
+ if(mode=='boss'){bossPress();return}if(mode=='credits'&&cs>ccEnd){if(!secret&&!endDone){endDone=1;endUI()}else toTown(0);return}}
+addEventListener('keydown',e=>{if(mode=='ui')return;const key=e.key.toLowerCase(),m=KM[key];
+ if(m){k[m]=1;if(!e.repeat)menuNav(m);e.preventDefault()}
+ else if(['e','enter',' ','z'].includes(key)&&!e.repeat){press();e.preventDefault()}
+ else if(key=='h'&&!e.repeat){hintK();e.preventDefault()}});
+addEventListener('keyup',e=>{const m=KM[e.key.toLowerCase()];if(m)k[m]=0});
+addEventListener('blur',()=>{k.u=k.d=k.l=k.r=0});
+document.querySelectorAll('[data-k]').forEach(b=>{const m=b.dataset.k;
+ b.addEventListener('pointerdown',e=>{e.preventDefault();k[m]=1;menuNav(m)});
+ ['pointerup','pointerleave','pointercancel'].forEach(t=>b.addEventListener(t,()=>k[m]=0))});
+document.getElementById('A').addEventListener('pointerdown',e=>{e.preventDefault();press()});
+document.getElementById('H').addEventListener('pointerdown',e=>{e.preventDefault();hintK()});
+function update(){
+ F.p+=(F.t-F.p)*0.04;if(toast>0)toast--;if(shake>0)shake--;if(mode=='boss'){bshow+=(bhp-bshow)*.08;if(bs=='anim'){if(++an.t==(AT[an.i].k?74:36))shake=14;if(an.t>=(AT[an.i].k?100:60)){bs='msg';bq=[AT[an.i].t,AT[an.i].r];if(used.slice(0,-1).every(v=>v))bq.push('The Disparity is almost beaten! Unleash UNITED VOICES!');bi=0}}else if(bs=='cine'&&++ct>720)startCredits();else if(bs=='sec'&&++ct>900)startCredits()}if(mode=='credits')cs+=k.u?1.2:.3;
+ if(mode!='walk')return;
+ if(dx||dy){pr+=2;if(pr>=16){PX=X;PY=Y;TR.unshift([X,Y]);if(TR.length>14)TR.length=14;X+=dx;Y+=dy;dx=dy=0;pr=0;if(loc=='tav'&&M[Y][X]=='D')goTown();else if(portal&&loc=='town'&&X==19&&Y==5)enterBoss()}}
+ else{let a=0,b=0;if(k.u){b=-1;fc=0}else if(k.d){b=1;fc=2}else if(k.l){a=-1;fc=3}else if(k.r){a=1;fc=1}
+  if((a||b)&&free(X+a,Y+b)){dx=a;dy=b}}}
+function R(a,b,w,h,col){x.fillStyle=col;x.fillRect(Math.round(a),Math.round(b),w,h)}
+function rr(a,b,w,h,r,f,s){x.beginPath();x.roundRect?x.roundRect(a,b,w,h,r):x.rect(a,b,w,h);x.fillStyle=f;x.fill();if(s){x.strokeStyle=s;x.lineWidth=1;x.stroke()}}
+function person(a,b,col,hat){R(a+4,b+1,8,6,'#f1c27d');R(a+3,b,10,3,hat);R(a+3,b+7,10,6,col);R(a+4,b+13,3,3,NV);R(a+9,b+13,3,3,NV);R(a+5,b+4,2,1,NV);R(a+9,b+4,2,1,NV)}
+function txt(s,a,b,col,f){x.font=f||FT;x.fillStyle=col||NV;x.fillText(s,a,b)}
+function bar(y,v,col,lab){txt(lab,66,y+5,'#fff',FB);rr(90,y,64,6,3,'#3a3866');if(v>1)rr(90,y,Math.round(64*Math.min(v,100)/100),6,3,col)}
+function bg(a,b){const g=x.createLinearGradient(0,0,0,144);g.addColorStop(0,a);g.addColorStop(1,b);x.fillStyle=g;x.fillRect(0,0,160,144)}
+function draw(){
+ x.textBaseline='alphabetic';R(0,0,160,144,SD);
+ if(mode=='title'){bg('#ff7ab0','#6a3df0');txt('BRIDGE THE GAP',16,34,'#fff','bold 13px Verdana,sans-serif');txt('An education-funding adventure',22,48,'#fff');txt('Collect the 4 powers of government:',14,66,'#fff',FB);
+ [['E','Enumerated'],['R','Reserved'],['C','Concurrent'],['I','Implied']].forEach(([q,nm],i)=>{const a=10+(i%2)*74,b=74+Math.floor(i/2)*20;rr(a,b,14,14,4,BC[q],NV);txt(q,a+4,b+10,'#fff',FB);txt(nm,a+18,b+10,'#fff',FB)});
+ txt('Recruit allies, then take the quest!',14,126,'#fff');ct_('Playing as '+PL.name,22,'#ffe27a',FB);if(Math.floor(Date.now()/500)%2)txt('Press Enter to start',38,138,'#ffe27a',FB);return}
+ if(mode=='boss'){drawBoss();tmDraw(1);return}if(mode=='credits'){drawCredits();return}
+ const ax=(X+dx*pr/16)*16,ay=(Y+dy*pr/16)*16;
+ const cx=Math.max(0,Math.min(W*16-160,ax-72)),cy=Math.max(0,Math.min(H*16-144,ay-64));
+ x.save();x.translate(-Math.round(cx),-Math.round(cy));
+ for(let j=0;j<H;j++)for(let i=0;i<W;i++){const t=M[j][i],a=i*16,b=j*16;if(loc=='tav'){tav(t,a,b,i,j);continue}
+  if(t=='#'){R(a,b,16,16,NV);R(a+2,b+2,12,12,'#4b3fa0');R(a+6,b+6,4,4,'#ff4d8d')}
+  else if(t=='='){R(a,b,16,16,(i+j)%2?'#a9d3ff':'#bfe0ff')}
+  else{R(a,b,16,16,SD);if((i*7+j*13)%5==0)R(a+4,b+5,2,2,'#ff4d8d');if((i*3+j*5)%7==0)R(a+10,b+10,2,2,'#fff');R(a+12,b+3,2,2,'#ffc21a')
+   if(t=='B'){const top=M[j-1][i]!='B',bot=M[j+1][i]!='B',rc=ROOF[j<6?0:1][Math.floor((i-2)/6)];R(a,b,16,16,top?rc:CR);if(!top)R(a+4,b+4,8,6,'#8fd3ff');if(bot&&(i%4==2||i%4==3))R(a+4,b+2,8,14,NV);if(top)R(a,b+13,16,3,'rgba(0,0,0,.18)')}}}
+ if(loc=='town'){x.globalAlpha=.2;['E','R','C','I'].forEach((q,i)=>txt(q,(8+i)*16+4,10*16+12,NV,'bold 12px Verdana,sans-serif'));x.globalAlpha=1;}
+ N.forEach(n=>n.k?med(n.x*16,n.y*16+(n.rc?Math.round(Math.sin(Date.now()/250+n.x)):0),n.k,n.col):person(n.x*16,n.y*16,n.col,NV));
+ N.forEach(n=>{const l=LB[n.n]||n.n;x.font=FB;const w=x.measureText(l).width+8,lx=n.x*16+8-w/2,ly=n.y*16-9;rr(lx,ly,w,9,4,'rgba(255,255,255,.93)',NV);txt(l,lx+4,ly+7,NV,FB)});
+ const qg=N.find(n=>n.qg);if(qg&&!quest){const yy=qg.y*16-12+Math.sin(Date.now()/150)*1.5;txt('!',qg.x*16+5,yy+1,NV,'bold 12px Verdana,sans-serif');txt('!',qg.x*16+4,yy,'#ffd54a','bold 12px Verdana,sans-serif')}if(quest){pxf+=(PX*16-pxf)*.2;pyf+=(PY*16-pyf)*.2;nerd(Math.round(pxf)+2,Math.round(pyf)+1)}
+ if(portal&&loc=='town'){const pu=Math.sin(Date.now()/200)*2;x.fillStyle=secret?'#ffd54a':'#8a4dff';x.beginPath();x.arc(19*16+8,5*16+8,8+pu,0,7);x.fill();x.fillStyle=secret?'#fff':'#ff7ab0';x.beginPath();x.arc(19*16+8,5*16+8,4+pu/2,0,7);x.fill()}
+ foll();hero(ax,ay);
+ x.restore();
+ rr(0,0,160,20,0,'rgba(27,27,58,.9)');tmDraw(22);
+ ['E','R','C','I'].forEach((q,i)=>rr(4+i*15,4,13,13,4,B[q]?BC[q]:'#3a3866',B[q]?'#fff':null),0);
+ ['E','R','C','I'].forEach((q,i)=>txt(q,8+i*15,13,B[q]?'#fff':'#7d7aa8',FB));
+ txt(portal?'PORTAL EAST →':quest?(loc=='tav'?'ALLIES '+RC.length+'/3 · PICK 3':'LESSONS '+TN.filter(n=>n.qd).length+'/7 · MISS '+wr+'/2'):'SEE QUEST MASTER',64,9,portal?'#ffe14a':'#fff',FB);rr(64,12,92,5,2.5,'#3a3866');if(F.p>1)rr(64,12,Math.round(92*Math.min(F.p/MK,1)),5,2.5,'#ffb000');
+ if(toast>0){rr(12,26,136,26,6,'#fff',NV);R(12,26,5,26,BC[Object.keys(NM).find(q=>NM[q]==t1.slice(15))]||'#ff4d8d');txt(t1,22,37,NV,FB);txt(t2,22,47)}
+ if(mode=='talk'){const p=pg[pi],s=typeof p=='string'?p:p[0],d=typeof p=='string'?null:p[1],pc=cur.pw?BC[cur.pw]:cur.col;
+  if(d){rr(10,22,140,52,8,'rgba(255,255,255,.96)',NV);d.forEach((l,i)=>{const y=25+i*12;rr(20,y,120,9,3,i==0?pc:(i==3?'#ffd54a':'#eef0ff'),NV);txt(l,25,y+7,i==0?'#fff':NV,FB);if(i<3)txt('▼',76,y+12,pc,'6px Verdana,sans-serif')})}
+  rr(2,84,156,58,8,'#fff',NV);const nm=cur.n+(cur.pw?' · '+NM[cur.pw]:'');x.font=FB;const w=x.measureText(nm).width+12;rr(8,76,w,12,5,pc,NV);txt(nm,14,85,'#fff',FB);
+  wrap(s,144).slice(0,5).forEach((l,i)=>txt(l,8,100+i*9));txt('▼',148,138,pc,'6px Verdana,sans-serif')}
+ quizDraw();recDraw();if(mode=='win'){bg('#ffe27a','#ff7ab0');rr(8,8,144,128,10,'#fff',NV);txt('BRIDGE COMPLETE!',30,24,NV,'bold 10px Verdana,sans-serif');
+  ['E','R','C','I'].forEach((q,i)=>{rr(14+i*35,30,32,12,4,BC[q]);txt(NM[q].slice(0,5),18+i*35,39,'#fff',FB)});
+  x.fillStyle=NV;bar(48,F.r,'#8a4dff','');bar(56,F.p,'#19c3e6','');txt('RICH',14,53,NV,FB);txt('EAST',14,61,NV,FB);
+  txt('OUR CLAIM',14,80,'#ff4d8d',FB);wrap("The funding gap closes when states fund fairly (LCFF), Congress backs low-income schools (Title I), and families hold every level accountable.",132).forEach((l,i)=>txt(l,14,91+i*9));
+  txt('Press E to keep exploring',32,130,'#8a4dff',FB)}}
+
+let quest=0,qi=0,qs=0,qst=0,qm='',hint='',wr=0,lose=0,PX=0,PY=0,pxf=0,pyf=0,seq='',secret=0,an=null,ct=0,bshow=100,portal=0,bossDone=0,bs='msg',bsel=0,bhp=100,bq=[],bi=0,used=[0,0,0,0,0],shake=0,cs=0,CL=[],ccEnd=0,RC=[],TR=[],rs=0,DM=20,T0=0,T1=0,ME=null,endDone=0,DB=null;
+const allT=()=>N.filter(n=>!n.fin).every(n=>n.t);
+const AT0=[
+{n:'LCFF Fireball',c:'#ff6a00',ty:0,t:"GOVERNOR uses RESERVED power: LCFF sends extra dollars to low-income students, English learners and foster youth!",r:"The Disparity: 'My property-tax wall is burning!'"},
+{n:'Title I Frost Orb',c:'#5fd8ff',ty:1,t:"CONGRESS uses ENUMERATED power: Title I sends federal money to high-poverty schools!",r:"The Disparity: 'Federal dollars? I am freezing!'"},
+{n:'Shared Funding Bolt',c:'#ffe14a',ty:2,t:"The ASSEMBLY uses CONCURRENT power: state and federal dollars reach the same schools!",r:"The Disparity: 'Two budgets at once?!'"},
+{n:'Oversight Beam',c:'#7a8cff',ty:3,t:"The U.S. DEPT. OF ED uses IMPLIED power: programs are monitored so dollars reach students!",r:"The Disparity: 'They are checking my books!'"},
+{n:'UNITED VOICES',c:'#ff2d7a',ty:4}];let AT=AT0;
+function menuNav(m){if(mode=='rec')rs^=1;if(mode=='boss'&&bs=='menu'&&(m=='u'||m=='d'))bsel=(bsel+(m=='d'?1:AT.length-1))%AT.length;if(mode=='quiz'&&!qst&&(m=='u'||m=='d'))qs=(qs+(m=='d'?1:2))%3}
+function enterBoss(){mode='boss';if(secret){bs='sec';ct=0;return}AT=[...AT0.slice(0,4),...RC.map(r=>({n:r.mv,c:r.col,k:r.k,o:r,t:r.t,r:r.rx})),AT0[4]];DM=100/AT.length;bhp=100;bshow=100;used=AT.map(()=>0);bsel=0;bs='msg';bi=0;bq=["A DISPARITY BOSS blocks the bridge! 'Rich areas raise more per student. Poor areas fall behind. Forever!'","Use the facts you learned. Allies' special moves each do equal damage. Save UNITED VOICES for last!"];if(wr>=2){lose=1;bq[1]="But you missed "+wr+" quiz answers. You can miss only ONE, so the Disparity cannot be beaten!"}}
+function bossPress(){
+ if(bs=='msg'){if(++bi>=bq.length){if(lose){bs='lose';bq=["Your facts crumble. The Disparity wins this time... You missed two questions, so this fight was unwinnable. Next time, miss no more than one! Press E to retry."];bi=0}else bs='menu'}}
+ else if(bs=='lose')location.reload()
+ else if(bs=='menu'&&!used[bsel]){const L=AT.length-1;if(bsel==L&&!used.slice(0,L).every(v=>v))return;used[bsel]=1;if(bsel==L){bs='cine';ct=0;bhp=0;T1=Date.now();lbAdd();return}bhp=Math.max(DM,bhp-DM);an={i:bsel,t:0};bs='anim'}}
+function startCredits(){bossDone=1;portal=0;F.t=MK;mode='credits';cs=0;CL=[];
+ const S=[...(secret?[["SECRET ENDING ACHIEVED",'b']]:[]),["Long ago, in a state not so far away...",'i'],["BRIDGE THE GAP",'b'],["Public schools in California are paid for by the state and by local property taxes. Where homes are worth more, communities can raise more, so wealthier neighborhoods have long had more to spend.",''],
+ ["The money spent on each student is called per-pupil funding. It pays for teachers, class sizes, counselors and advanced classes. A 2019 EdBuild report found mostly non-white districts get about $23 billion less than mostly white ones.",''],
+ ["In 1971, Serrano v. Priest ruled property-tax school funding unconstitutional. Prop 13 in 1978 capped property taxes and moved more control to the state.",''],
+ ["In 2013 California created LCFF, the Local Control Funding Formula. Every district gets a base grant, plus extra for low-income students, English learners and foster youth.",''],
+ ["What could fix it? Fully funding LCFF. Strong federal Title I support. Fair sharing of dollars across districts. Extra spending where students need it. And families who vote and speak up.",''],
+ ["You are the bridge.",'b'],["By Connor Santos, Bianca Lopez, and Martin Trieu",'b']];
+ S.forEach(([t,st])=>{wrap(t,100).forEach(l=>CL.push({t:l,s:st}));CL.push(null)});ccEnd=CL.length*12+240}
+function drawCredits(){const gg=x.createLinearGradient(0,0,0,144);gg.addColorStop(0,'#02020a');gg.addColorStop(1,'#14083a');x.fillStyle=gg;x.fillRect(0,0,160,144);
+ for(let i=0;i<70;i++){const sx=(((i*53-cs*(.05+(i%3)*.04))%160)+160)%160,z=i%7==0?2:1;x.globalAlpha=.35+.65*Math.abs(Math.sin(cs/20+i));R(sx,(i*97)%144,z,z,'#fff')}x.globalAlpha=1;
+ x.fillStyle='#d9884a';x.beginPath();x.arc(28,38,15,0,7);x.fill();x.fillStyle='rgba(0,0,0,.25)';x.beginPath();x.arc(33,42,12,0,7);x.fill();x.strokeStyle='#f3c98b';x.lineWidth=2;x.beginPath();x.ellipse(28,38,26,6,-.4,0,7);x.stroke();
+ x.fillStyle='#4aa3ff';x.beginPath();x.arc(132,106,10,0,7);x.fill();x.fillStyle='rgba(0,0,0,.25)';x.beginPath();x.arc(136,109,8,0,7);x.fill();x.fillStyle='#ff6a9a';x.beginPath();x.arc(140,26,5,0,7);x.fill();x.fillStyle='#cfcfe8';x.beginPath();x.arc(118,92,3,0,7);x.fill();
+ x.save();x.globalAlpha=.6;x.translate(80+Math.sin(cs/80)*45,66+Math.cos(cs/110)*18);x.rotate(cs*.02);x.scale(.6,.6);x.translate(-80,-48);bossSpr();x.restore();x.globalAlpha=1;
+ x.textAlign='center';CL.forEach((l,i)=>{if(!l)return;const d=cs-i*12;if(d<0)return;const sc=1/(1+d/70);if(sc<0.2)return;
+  x.globalAlpha=Math.min(1,(sc-0.2)*4);x.font='bold '+((l.s=='b'?12:9)*sc).toFixed(1)+'px Verdana,sans-serif';x.fillStyle=l.s=='i'?'#4bd5ff':'#ffd54a';x.fillText(l.t,80,24+120*sc)});
+ x.globalAlpha=1;if(cs>ccEnd&&Math.floor(Date.now()/500)%2){x.font=FB;x.fillStyle='#fff';x.fillText('Press E to return to town',80,136)}x.textAlign='left'}
+function bossSpr(){rr(58,26,44,44,12,'#5b2bd6',NV);x.fillStyle='#ff2d7a';
+ x.beginPath();x.moveTo(62,30);x.lineTo(66,14);x.lineTo(72,28);x.fill();x.beginPath();x.moveTo(98,30);x.lineTo(94,14);x.lineTo(88,28);x.fill();
+ R(67,35,11,2,NV);R(82,35,11,2,NV);R(68,38,8,6,'#fff');R(84,38,8,6,'#fff');R(72,40,3,3,NV);R(85,40,3,3,NV);txt('$',73,64,'#ffd54a','bold 16px Verdana,sans-serif')}
+function fx(ty,t){const p=t/60,q=Math.min(p/.6,1),sx=28,sy=58,ex=80,ey=48,px=sx+(ex-sx)*q,py=sy+(ey-sy)*q-Math.sin(q*Math.PI)*8,C=AT[ty].c;
+ if(ty<2){if(p<.6){for(let i=5;i>0;i--){x.globalAlpha=.12*(6-i);x.fillStyle=C;x.beginPath();x.arc(px-i*4,py+i,4+q*2-i*.4,0,7);x.fill()}x.globalAlpha=1;
+  if(ty==0){x.fillStyle=C;x.beginPath();x.arc(px,py,6+q*2,0,7);x.fill();x.fillStyle='#ffe14a';x.beginPath();x.arc(px,py,3.5,0,7);x.fill()}
+  else{x.fillStyle=C;x.beginPath();x.moveTo(px,py-8);x.lineTo(px+6,py);x.lineTo(px,py+8);x.lineTo(px-6,py);x.fill();R(px-2,py-2,4,4,'#fff')}}
+  else{const r=(p-.6)/.4;x.globalAlpha=1-r;x.strokeStyle=ty?'#fff':'#ffe14a';x.lineWidth=2;x.beginPath();x.arc(ex,ey,4+r*26,0,7);x.stroke();x.strokeStyle=C;for(let i=0;i<10;i++){const a=i*.63;x.beginPath();x.moveTo(ex+Math.cos(a)*r*10,ey+Math.sin(a)*r*10);x.lineTo(ex+Math.cos(a)*(8+r*30),ey+Math.sin(a)*(8+r*30));x.stroke()}x.globalAlpha=1}}
+ else if(ty==2){if(p>.2&&p<.9&&t%4<3){const pts=[];let bx=ex,by=14;for(let i=0;i<6;i++){bx=ex+Math.random()*16-8;by+=6;pts.push([bx,by])}[[4,C],[1.5,'#fff']].forEach(([w,cl])=>{x.strokeStyle=cl;x.lineWidth=w;x.beginPath();x.moveTo(ex,8);pts.forEach(q=>x.lineTo(q[0],q[1]));x.lineTo(ex,ey);x.stroke()});x.globalAlpha=.4;x.fillStyle=C;x.beginPath();x.arc(ex,ey,14,0,7);x.fill();x.globalAlpha=1}}
+ else{if(p<.85){const w=Math.sin(p/.85*Math.PI)*9+1,g=x.createLinearGradient(sx,0,ex,0);g.addColorStop(0,'#fff');g.addColorStop(1,C);x.fillStyle=g;x.fillRect(sx,sy-w/2-4,ex-sx+6,w);x.strokeStyle='#fff';x.lineWidth=1;x.beginPath();x.arc(sx,sy-4,4+t%10,0,7);x.stroke();x.fillStyle=C;x.beginPath();x.arc(ex,ey,w+2,0,7);x.fill()}}}
+const SN=['RESERVED','ENUMERATED','CONCURRENT','IMPLIED','THE PEOPLE'],SC=[BC.R,BC.E,BC.C,BC.I,'#ff7ab0'],CH=["Every school gets what it needs","Every student is counted","Money follows need","Every voice is heard"];
+function ct_(t,y,col,f){x.textAlign='center';txt(t,80,y,col,f);x.textAlign='left'}
+function eye(cx,cy,sc,t,o,mg){x.save();x.translate(cx,cy);x.scale(sc,sc);x.beginPath();x.ellipse(0,0,34,20*o+.1,0,0,7);x.clip();x.fillStyle='#f4f4f4';x.fillRect(-34,-20,68,40);x.fillStyle='#d00018';x.beginPath();x.arc(0,0,17,0,7);x.fill();x.strokeStyle='#5a0008';x.lineWidth=1.5;x.stroke();x.fillStyle=x.strokeStyle='#000';
+ for(let i=0;i<3;i++){const a=t*.09+i*2.094;if(mg){x.save();x.rotate(a);x.beginPath();x.moveTo(0,-3);x.quadraticCurveTo(13,-6,3,-16);x.quadraticCurveTo(6,-8,0,-3);x.fill();x.restore()}else{x.beginPath();x.arc(Math.cos(a)*10,Math.sin(a)*10,3.2,0,7);x.fill();x.lineWidth=2.4;x.beginPath();x.arc(0,0,10,a-.6,a);x.stroke()}}
+ x.beginPath();x.arc(0,0,3,0,7);x.fill();x.restore()}
+function drawCine(t){const v=t-360;
+ if(t<90){bg('#1b1b3a','#6a3df0');R(0,72,160,12,'#2b1f70');const sc=1+.05*Math.sin(t/6);x.save();x.translate(80,48);x.scale(sc,sc);x.translate(-80,-48);bossSpr();x.restore();hero(14,52);for(let i=0;i<14;i++){x.globalAlpha=.7;R((i*47)%160,140-((t*1.5+i*23)%110),2,2,'#ffd54a')}x.globalAlpha=1}
+ else if(t<270){const i=Math.floor((t-90)/36),u=(t-90)%36;R(0,0,160,144,'#12102b');x.lineWidth=1;for(let j=0;j<26;j++){const a=j*.24,r=20+((t*4+j*19)%90);x.strokeStyle=SC[i];x.globalAlpha=.35;x.beginPath();x.moveTo(80+Math.cos(a)*r,72+Math.sin(a)*r);x.lineTo(80+Math.cos(a)*(r+24),72+Math.sin(a)*(r+24));x.stroke()}x.globalAlpha=1;
+  x.save();x.translate(80,88);x.scale(3,3);hero(-8,-8);x.restore();
+  x.save();x.translate(80,44);x.rotate(-.3+i*.15);x.fillStyle=SC[i];x.beginPath();x.arc(0,0,18+(u<8?8-u:0),0,7);x.fill();x.strokeStyle=NV;x.lineWidth=1.5;x.stroke();x.fillStyle='#f1c27d';x.fillRect(-6,-2,12,10);for(let j=0;j<4;j++)x.fillRect(-6+j*3.4,-12+(j%2)*2,2.6,11);x.fillRect(-9,0,3,7);x.restore();if(u<4)R(0,0,160,144,'rgba(255,255,255,.5)')}
+ else if(t<360){R(0,0,160,144,'#000');const g=x.createRadialGradient(80,72,4,80,72,90);g.addColorStop(0,'#8a0016');g.addColorStop(1,'#000');x.fillStyle=g;x.fillRect(0,0,160,144);eye(80,72,2,t,Math.min(1,(t-270)/30),t>315);if(t>=315&&t<320)R(0,0,160,144,'#fff')}
+ else if(t<560){const g=x.createLinearGradient(0,0,0,144);g.addColorStop(0,'#b00020');g.addColorStop(1,'#25000a');x.fillStyle=g;x.fillRect(0,0,160,144);
+  x.fillStyle='#0a0a0a';x.beginPath();x.arc(80,38,28,0,7);x.fill();x.strokeStyle='#ff3030';x.lineWidth=1.5;[28,20,12].forEach(r=>{x.beginPath();x.arc(80,38,r,0,7);x.stroke()});
+  const k=Math.floor(v/8),w=v%8,sc=1-v/400;x.strokeStyle='#ffe14a';for(let j=0;j<6;j++){x.beginPath();x.moveTo(j*32,144);x.quadraticCurveTo(80+Math.sin(t/9+j)*14,100,80,84);x.stroke()}
+  x.save();x.translate(80+(w<3?Math.random()*4-2:0),84);x.scale(sc,sc);x.translate(-80,-48);bossSpr();x.restore();
+  if(w<3){x.strokeStyle='#fff';x.lineWidth=3;x.beginPath();x.moveTo((k*37)%160,(k*53)%60);x.lineTo(160-(k*37)%160,144-(k*29)%60);x.stroke();if(w==0)R(0,0,160,144,'rgba(255,255,255,.55)')}
+  ct_(CH[Math.floor(v/50)%4],112,'#fff',FB)}
+ else if(t<650){const u=t-560;bg('#ffb27a','#ff4d8d');for(let i=0;i<30;i++){const a=i*2.4,sp=u*(.5+(i%5)*.18);x.globalAlpha=Math.max(0,1-u/80);x.fillStyle='#ffd54a';x.beginPath();x.arc(80+Math.cos(a)*sp,60+Math.sin(a)*sp+u*u*.004,2.5,0,7);x.fill()}x.globalAlpha=1;
+  x.save();x.translate(80,96);x.scale(2.5,2.5);hero(-8,-8);R(8,-12,3,9,'#f1c27d');x.restore();if(u<30)R(0,0,160,144,'rgba(255,255,255,'+(1-u/30)+')')}
+ else{bg('#ffe27a','#ff4d8d');x.strokeStyle='rgba(255,255,255,.5)';x.lineWidth=3;for(let j=0;j<16;j++){const a=j*.39+t*.01;x.beginPath();x.moveTo(80+Math.cos(a)*10,70+Math.sin(a)*10);x.lineTo(80+Math.cos(a)*120,70+Math.sin(a)*120);x.stroke()}ct_('YOU WIN!',82,NV,'bold 24px Verdana,sans-serif')}
+ const hb=Math.min(14,t/2);R(0,0,160,hb,'#000');R(0,144-hb,160,hb,'#000');
+ if((t>=90&&t<270)||(t>=360&&t<650))rcFx(t);
+ ct_(t<90?"'You cannot change a system!'":t<270?'SEAL OF '+SN[Math.floor((t-90)/36)]:t<360?'THE EYE OF THE PEOPLE':t<560?(RC.length?RC[(v/(200/RC.length)|0)%RC.length].mv.toUpperCase()+'!':'INFINITE ILLUSION'):t<650?'THE DISPARITY IS DEFEATED':'THE GAP CLOSES TOGETHER',140,'#fff',FB)}
+const LB={'School Board':'School Board · Local','Governor':'Governor · State','Congress':'Congress · Federal','State Assembly':'State Assembly · State','US Dept. of Ed':'US Dept. of Education','EdTrust-West':'EdTrust-West · Non-profit','Parent':'Parent · Community'};
+function sil(a,b,c,e){R(a+3,b,10,14,c);R(a+4,b+14,3,3,c);R(a+9,b+14,3,3,c);R(a+5,b+4,2,1,e);R(a+9,b+4,2,1,e)}
+function hair(c){x.fillStyle=c;x.beginPath();x.moveTo(-6,-6);x.lineTo(-7,-14);x.lineTo(-3,-9);x.lineTo(-2,-17);x.lineTo(1,-9);x.lineTo(4,-17);x.lineTo(5,-9);x.lineTo(8,-14);x.lineTo(7,-6);x.fill()}
+function robot(cx,cy,sc,p){const e=1-Math.pow(1-p,3),o=(1-e)*70;x.save();x.translate(cx,cy);x.scale(sc,sc);
+ R(-14,10+o,10,22,BC.I);R(4,10+o,10,22,BC.I);R(-16,30+o,14,6,NV);R(2,30+o,14,6,NV);
+ R(-16-o,-14,32,26,BC.R);x.fillStyle='#ffe14a';x.beginPath();x.arc(-o,-1,6,0,7);x.fill();
+ R(-28-o,-12,12,24,BC.C);R(16+o,-12,12,24,BC.C);R(-30-o,10,16,8,'#fff');R(14+o,10,16,8,'#fff');
+ R(-9,-30-o,18,14,BC.E);R(-7,-25-o,14,4,'#fff');R(-5,-24-o,3,2,'#f00');R(2,-24-o,3,2,'#f00');x.restore()}
+function drawSec(t){
+ const AL=[[16,28,BC.E],[16,94,BC.R],[128,28,BC.C],[128,94,BC.I]],v=t-300;let sub='';
+ const SH=(t>=300&&t<520&&v%30>=12&&v%30<20)||(t>=750&&t<820);x.save();if(SH)x.translate(Math.random()*4-2,Math.random()*4-2);
+ if(t<120){bg('#16132e','#05050f');const n=Math.floor(t/24);x.fillStyle='#000';x.beginPath();x.arc(80,40,30+Math.sin(t/8)*2,0,7);x.fill();R(66,36,10,4,'#ff2020');R(84,36,10,4,'#ff2020');
+  AL.forEach((a,i)=>{if(n>i){x.globalAlpha=.3;x.fillStyle=a[2];x.beginPath();x.arc(a[0]+8,a[1]+8,18,0,7);x.fill();x.globalAlpha=1}x.save();x.translate(a[0]+8,a[1]+8);x.scale(2,2);sil(-8,-8,'#000',n>i?a[2]:'#000');x.restore()});
+  x.save();x.translate(80,104);x.scale(3,3);sil(-8,-8,'#000','#fff');x.restore();sub=n>=4?'E · R · C · I: THE ORDER IS COMPLETE':'SOMETHING STIRS IN THE SHADOWS...'}
+ else if(t<300){const u=t-120;bg('#0a0a1f','#5a4300');R(0,118,160,26,'#1a1408');x.strokeStyle='#000';x.lineWidth=1;for(let i=0;i<7;i++){x.beginPath();x.moveTo(80,118);x.lineTo(80+(i-3)*22*Math.min(1,u/80),144);x.stroke()}
+  for(let i=0;i<20;i++){const f0=80+((i*37)%56-28),h=14+((t*3+i*17)%34);x.globalAlpha=.65;x.fillStyle=i%2?'#ffd54a':'#fff3a0';x.beginPath();x.moveTo(f0-5,118);x.lineTo(f0,118-h);x.lineTo(f0+5,118);x.fill()}x.globalAlpha=1;
+  x.save();x.translate(80,96);x.scale(3,3);person(-8,-8,'#fff',u>100?'#ffd54a':'#111');hair(u>100?'#ffd54a':'#111');x.restore();
+  if(u>60&&t%3==0){x.strokeStyle='#fff36b';x.lineWidth=1.5;for(let j=0;j<2;j++){x.beginPath();let lx=80+Math.random()*40-20,ly=40;x.moveTo(lx,ly);for(let i=0;i<5;i++){lx+=Math.random()*14-7;ly+=14;x.lineTo(lx,ly)}x.stroke()}}
+  if(t>=290)R(0,0,160,144,'#fff');sub=u<100?'POWER RISES...':'SUPER CIVIC FORM!'}
+ else if(t<520){const ph=v%30,lg=ph<15?ph/15:(30-ph)/15;bg('#1b1b3a','#ff8a3d');x.strokeStyle='rgba(255,255,255,.35)';x.lineWidth=1;for(let i=0;i<24;i++){const yy=(i*19)%144,xx=(v*14+i*31)%200-20;x.beginPath();x.moveTo(xx,yy);x.lineTo(xx+30,yy);x.stroke()}
+  const pxx=30+lg*36,bxx=130-lg*36;[.6,.3,1].forEach((al,k)=>{x.globalAlpha=al;x.save();x.translate(pxx-(k<2?al*14:0),80);x.scale(2,2);person(-8,-8,'#fff','#111');hair('#ffd54a');x.restore()});x.globalAlpha=1;
+  x.save();x.translate(bxx,62);x.scale(.7,.7);x.translate(-80,-48);bossSpr();x.restore();
+  if(ph>=12&&ph<20){x.strokeStyle='#ffe14a';x.lineWidth=2;for(let i=0;i<8;i++){const a=i*.785+v*.1,r=10+(ph-12)*3;x.beginPath();x.moveTo(80,72);x.lineTo(80+Math.cos(a)*r,72+Math.sin(a)*r);x.stroke()}}
+  if(v>40)AL.forEach((a,j)=>{const off=(1-Math.min(1,(v-40)/30))*(a[0]<80?-60:60);x.save();x.translate(a[0]+8+off,a[1]+8);x.scale(1.5,1.5);person(-8,-8,a[2],'#111');x.restore();if(v>80&&(v+j*9)%36<16){x.strokeStyle=a[2];x.lineWidth=3;x.beginPath();x.moveTo(a[0]+8,a[1]+8);x.lineTo(bxx,62);x.stroke()}});
+  sub=v<80?'THE GOLDEN WARRIOR ATTACKS!':'THE ALLIES JOIN THE BATTLE!'}
+ else if(t<700){const u=t-520;bg('#050520','#2a1a6a');for(let i=0;i<30;i++)R((i*53+u*3)%160,(i*97)%144,2,1,'#fff');
+  x.save();x.translate(122,78);x.scale(.9,.9);x.translate(-80,-48);bossSpr();x.restore();
+  if(u<70){const e=u/70;AL.forEach((a,j)=>{const an=e*6+j*1.57,r=(1-e)*50;x.save();x.translate(50+Math.cos(an)*r,82+Math.sin(an)*r);x.scale(1.5,1.5);person(-8,-8,a[2],'#111');x.restore()})}
+  else{robot(50,82,1.3,Math.min(1,(u-70)/60));if(u<76)R(0,0,160,144,'#fff')}
+  sub=u<70?'THE ALLIES COMBINE...':'BRIDGE GUARDIAN ASSEMBLED!'}
+ else if(t<820){const u=t-700;bg('#0a0a2a','#3a1a7a');robot(50,82,1.3,1);
+  x.save();x.translate(122+(u>50?Math.random()*3-1.5:0),78);x.scale(.9,.9);x.translate(-80,-48);bossSpr();x.restore();
+  if(u<50){x.fillStyle='#ffe14a';x.beginPath();x.arc(50,81,3+u*.2,0,7);x.fill()}
+  else{const w=Math.min(18,(u-50)*.6),g=x.createLinearGradient(56,0,122,0);g.addColorStop(0,'#fff');g.addColorStop(1,'#ffd54a');x.fillStyle=g;x.fillRect(56,81-w/2,70,w);x.fillStyle='#fff';x.beginPath();x.arc(122,78,w,0,7);x.fill()}
+  if(u>95)R(0,0,160,144,'rgba(255,255,255,'+Math.min(1,(u-95)/15)+')');sub=u<50?'BRIDGE GUARDIAN CHARGES...':'FINAL STRIKE: FAIR FUNDING BLAST!'}
+ else{bg('#ffe27a','#ff4d8d');x.strokeStyle='rgba(255,255,255,.5)';x.lineWidth=3;for(let j=0;j<16;j++){const a=j*.39+t*.01;x.beginPath();x.moveTo(80+Math.cos(a)*10,70+Math.sin(a)*10);x.lineTo(80+Math.cos(a)*120,70+Math.sin(a)*120);x.stroke()}
+  ct_('SECRET ENDING',64,NV,'bold 16px Verdana,sans-serif');ct_('ACHIEVED!',88,'#fff','bold 20px Verdana,sans-serif');sub='THE GAP CLOSES TOGETHER'}
+ x.restore();const hb=Math.min(14,t/2);R(0,0,160,hb,'#000');R(0,144-hb,160,hb,'#000');ct_(sub,140,'#fff',FB)}
+function drawBoss(){bg('#1b1b3a','#6a3df0');R(0,72,160,12,'#2b1f70');
+ if(bs=='cine'){drawCine(ct);return}if(bs=='sec'){drawSec(ct);return}
+ x.save();x.translate(shake>0?Math.random()*4-2:0,0);bossSpr();x.restore();
+ ct_('THE DISPARITY',7,'#fff',FB);rr(30,10,100,8,4,'#3a3866');if(bshow>1)rr(30,10,bshow,8,4,'#ff4d6d');
+ hero(14,52);RC.forEach((r,i)=>{if(bs=='anim'&&AT[an.i].o==r)return;x.globalAlpha=used[4+i]?.5:1;fxF(r,104+i%3*17,30+(i/3|0)*15,i);x.globalAlpha=1;if(bs=='menu'&&AT[bsel].o==r)txt('▼',109+i%3*17,28+(i/3|0)*15,r.col,FB)});if(bs=='anim'){AT[an.i].k?rfx(AT[an.i],an.t):fx(AT[an.i].ty,an.t)}if(shake>9)R(0,0,160,144,'rgba(255,255,255,.35)');if(bs=='lose')R(0,0,160,84,'rgba(130,0,25,.5)');
+ rr(2,84,156,58,8,'#fff',NV);
+ if(bs=='anim')txt(AT[an.i].n+'!',8,100,AT[an.i].c,'bold 9px Verdana,sans-serif');
+ else if(bs=='msg'||bs=='lose'){wrap(bq[bi],144).slice(0,5).forEach((l,i)=>txt(l,8,96+i*9));txt('▼',148,138,'#8a4dff')}
+ else{const n=AT.length,L=n-1,lk=!used.slice(0,L).every(v=>v),tp=Math.max(0,Math.min(n-5,bsel-2));txt('Pick an attack ('+used.filter(v=>v).length+'/'+n+'):',8,94,'#8a4dff',FB);AT.forEach((a,i)=>{if(i<tp||i>=tp+5)return;const y=105+(i-tp)*8,dim=used[i]||(i==L&&lk);txt(bsel==i?'▶':'',8,y);R(16,y-6,5,5,dim?'#c9c7e6':a.c);txt((used[i]?'✓ ':'')+a.n+(i==L&&lk?' (locked)':''),25,y,dim?'#9a98c0':NV,FB)})}}
+function tav(t,a,b,i,j){
+ if(t=='#'){R(a,b,16,16,'#3b2314');R(a,b+7,16,2,'#2a190e');R(a+(j%2?8:0),b,1,7,'#2a190e');R(a+(j%2?0:8),b+9,1,7,'#2a190e');if(j==0&&i%4==1){R(a+6,b+4,4,8,'#8a8a8a');R(a+7,b+1,2,3,(Date.now()/120|0)%2?'#ffb000':'#ff7a1a')}return}
+ R(a,b,16,16,j%2?'#9a6a3a':'#a5733f');R(a,b+15,16,1,'#6e4a26');R(a+(i*5+j)%3*4,b+5,5,1,'#7e5530');
+ if(t=='K'){R(a,b+3,16,11,'#6e4222');R(a,b+3,16,3,'#c58a4a');if(i%3==1){R(a+5,b-1,5,5,'#e8d27a');R(a+6,b,3,2,'#fff4c8')}}
+ else if(t=='T'){R(a,b+2,16,12,'#7a4a22');R(a,b+2,16,2,'#a8743a');if(M[j-1][i]!='T'&&i%2==1){R(a+3,b-2,4,5,'#e8d27a');R(a+4,b-1,2,2,'#fff4c8')}}
+ else if(t=='F'){R(a,b,16,16,'#55555f');R(a+2,b+3,12,13,'#150805');const f=(Date.now()/130|0)%2;R(a+4,b+8,8,8,'#ff7a1a');R(a+6,b+5+f*2,4,10,'#ffd54a')}
+ else if(t=='D'){R(a,b,16,16,'#4b2a12');R(a+1,b+1,14,15,'#6b3f1d');R(a+7,b+8,2,2,'#ffd54a');R(a,b+13,16,3,'#ffd58a')}}
+function med(a,b,k,c){const S='#f1c27d';
+ R(a+4,b+8,8,6,c);R(a+3,b+9,2,5,c);R(a+11,b+9,2,5,c);R(a+4,b+14,3,2,NV);R(a+9,b+14,3,2,NV);R(a+5,b+3,6,5,S);R(a+6,b+5,1,1,NV);R(a+9,b+5,1,1,NV);R(a+7,b+11,2,2,'#ffd54a');
+ if(k=='wiz'){R(a+5,b+7,6,5,'#eee');R(a+2,b+2,12,2,'#5a2bb0');R(a+4,b,8,2,'#5a2bb0');R(a+6,b-3,4,3,'#5a2bb0');R(a+7,b+1,2,1,'#ffd54a')}
+ else if(k=='kn'){R(a+4,b+1,8,5,'#b8bcc8');R(a+5,b+4,6,1,NV);R(a+7,b-3,2,4,'#ff4d6d');R(a+4,b+8,8,6,'#9aa0b0');R(a+7,b+9,2,5,'#e6e8f0')}
+ else if(k=='bard'){R(a+3,b+2,10,2,'#2ab07a');R(a+5,b,6,2,'#2ab07a');R(a+10,b-4,2,5,'#ff4d6d');R(a+11,b+10,5,4,'#c58a4a')}
+ else if(k=='dw'){R(a+4,b+1,8,3,'#8a8a96');R(a+3,b-1,2,3,'#eee');R(a+11,b-1,2,3,'#eee');R(a+4,b+6,8,5,'#c4511a')}
+ else if(k=='hood'){R(a+4,b,8,2,c);R(a+3,b+1,10,3,c);R(a+3,b+3,2,7,c);R(a+11,b+3,2,7,c);R(a+6,b+4,4,3,'#111');R(a+6,b+5,1,1,'#ffd54a');R(a+9,b+5,1,1,'#ffd54a')}
+ else if(k=='sai'){R(a+4,b,8,3,'#111');R(a+3,b-3,2,4,'#111');R(a+6,b-4,2,4,'#111');R(a+9,b-3,2,4,'#111');R(a+11,b-2,2,3,'#111');R(a+4,b+8,8,6,'#ff8a1d');R(a+4,b+11,8,1,'#2a6fdb')}
+ else if(k=='arc'){R(a+3,b+1,10,3,'#2f8a3a');R(a+4,b-1,8,2,'#2f8a3a');R(a+12,b+3,1,13,'#a8743a');R(a+13,b+3,1,2,'#fff');R(a+13,b+14,1,2,'#fff');R(a+1,b+8,2,6,'#6b3a1a')}
+ else{R(a+4,b+2,8,2,'#fff');R(a+4,b+9,8,5,'#fff');R(a+5,b+7,6,2,'#6b3a1a')}}
+function nerd(a,b){R(a+5,b+8,6,5,'#7ad9a0');R(a+9,b+9,2,3,'#fff');R(a+10,b+8,1,2,'#e33');R(a+5,b+13,2,2,NV);R(a+9,b+13,2,2,NV);R(a+4,b+2,8,6,'#f1c27d');R(a+4,b+1,8,2,'#6b3a1a');R(a+3,b+3,5,4,NV);R(a+8,b+3,5,4,NV);R(a+4,b+4,3,2,'#fff');R(a+9,b+4,3,2,'#fff');R(a+5,b+5,1,1,NV);R(a+10,b+5,1,1,NV);R(a+7,b+4,2,1,NV);R(a+6,b+7,4,1,'#c0392b')}
+function goTown(){loc='town';M=TM;N=TN;X=10;Y=5;fc=2;PX=X;PY=Y;pxf=X*16;pyf=Y*16;TR=[[10,5],[10,6],[10,7],[9,7],[11,7],[9,6],[11,6],[8,7],[12,7],[8,6],[12,6]];RC.forEach((r,j)=>{r.fx=TR[j+1][0]*16;r.fy=TR[j+1][1]*16});t1='WELCOME TO TOWN';t2='Talk to everyone!';toast=170}
+function chk(){const sc=bossDone&&secret&&cnt()==4;if(portal||(bossDone&&!sc))return;if(sc||TN.every(n=>n.qd)){portal=1;t1=sc?'SECRET PORTAL!':'PORTAL OPENED!';t2=sc?'A golden light awaits...':'Quests done! Go east';toast=240}}
+function hintK(){if(mode=='quiz'&&!qst&&quest)hint=QZ[cur.n][qi][3]}
+function quizPress(){const L=QZ[cur.n],Q=L[qi];
+ if(!qst){const ok=qs==Q[2];F.t+=ok?20:5;if(!ok)wr++;qm=ok?'Correct! +20 knowledge':'Not quite, +5. It was: '+Q[1][Q[2]];qst=1;hint=''}
+ else if(++qi>=L.length){cur.qd=1;t1=cur.pw?'POWER LEARNED: '+NM[cur.pw]:'LESSON COMPLETE';t2=wr>=2?'Too many misses! No victory now':'KNOWLEDGE '+F.t+'/'+MK;toast=170;mode='walk';chk()}
+ else{qs=0;qst=0;hint=''}}
+function quizDraw(){if(mode!='quiz')return;const L=QZ[cur.n],Q=L[qi],pc=cur.pw?BC[cur.pw]:cur.col,nm=cur.n+' · QUIZ '+(qi+1)+'/'+L.length;
+ rr(2,40,156,102,8,'#fff',NV);x.font=FB;rr(8,32,x.measureText(nm).width+12,12,5,pc,NV);txt(nm,14,41,'#fff',FB);
+ wrap(Q[0],144).slice(0,3).forEach((l,i)=>txt(l,8,53+i*9));
+ Q[1].forEach((o,i)=>{const y=80+i*13,s=i==qs,r=qst&&i==Q[2];rr(10,y,140,11,4,r?'#7be08a':s?pc:'#eef0ff',NV);txt((s&&!qst?'▶ ':'')+o,14,y+8,s&&!r?'#fff':NV,FB)});
+ nerd(4,123);const m=qst?qm:hint?'Pip: '+hint:'';wrap(m||'Need help? Press H for Pip',122).slice(0,2).forEach((l,i)=>txt(l,24,129+i*8,m?NV:'#8a88b8'));if(qst)txt('▼',148,138,pc,'6px Verdana,sans-serif')}
+
+function spr(k,c,a,b,s){x.save();x.translate(a,b);x.scale(s,s);med(-8,-8,k,c);x.restore()}
+function ln(a,b,c,d,col,w){x.strokeStyle=col;x.lineWidth=w;x.beginPath();x.moveTo(a,b);x.lineTo(c,d);x.stroke()}
+function ci(a,b,r,col){x.fillStyle=col;x.beginPath();x.arc(a,b,Math.max(0,r),0,7);x.fill()}
+function fl(a){R(0,0,160,144,'rgba(255,255,255,'+a+')')}
+function fxF(r,a,b,j){const T=Date.now(),s=Math.sin(T/260+j),bb=Math.round(Math.sin(T/190+j*1.3)*1.5),k=r.k,u=T/60;
+ x.fillStyle='rgba(0,0,0,.25)';x.beginPath();x.ellipse(a+8,b+16,6,2,0,0,7);x.fill();
+ x.globalAlpha=.16+.07*s;ci(a+8,b+9+bb,11,r.col);x.globalAlpha=1;
+ for(let i=0;i<2;i++){const q=T/280+i*3.14+j;R(a+8+Math.cos(q)*11,b+8+bb+Math.sin(q)*8,2,2,i?'#fff':r.col)}
+ if(k=='hood')x.globalAlpha=.65+.3*s;med(a,b+bb,k,r.col);x.globalAlpha=1;b+=bb;
+ if(k=='sai'){x.globalAlpha=.8;x.fillStyle='#ffd54a';for(let i=0;i<3;i++){const h=3+(Math.sin(u+i*2)+1)*2;x.fillRect(a+5+i*3,b-5-h,2,h+2)}x.globalAlpha=1}
+ else if(k=='wiz')ci(a+8+Math.cos(u/3)*12,b+4+Math.sin(u/3)*5,2,'#7ae8ff');
+ else if(k=='bard')txt('♪',a+11,b-(u%10),r.col,FB);
+ else if(k=='dw'){x.globalAlpha=.5;R(a+4+u%6,b-2-u%8,2,2,'#ff6a3a');R(a+9-u%4,b-4-u%6,2,2,'#ff6a3a');x.globalAlpha=1}
+ else if(k=='kn'){R(a+14,b+3,1,8,'#e6e8f0');if(u%20<3)R(a+13,b+2,3,3,'#fff')}
+ else if(k=='arc')R(a+13,b+3+u%3,1,2,'#9dff7a');
+ else if(k=='keep')R(a+3+u%10,b+14-u%5*3,2,2,'#fff')}
+function foll(){RC.forEach((r,j)=>{const T=TR[j+1]||TR[TR.length-1]||[X,Y];r.fx+=(T[0]*16-r.fx)*.2;r.fy+=(T[1]*16-r.fy)*.2;fxF(r,Math.round(r.fx),Math.round(r.fy),j)})}
+function recPress(){if(rs==0&&RC.length<3){cur.rec=1;cur.fx=X*16;cur.fy=Y*16;RC.push(cur);N.splice(N.indexOf(cur),1);t1='ALLY RECRUITED!';t2=cur.n+' joins you';toast=170}mode='walk'}
+function recDraw(){if(mode!='rec')return;const pc=cur.col;rr(2,84,156,58,8,'#fff',NV);txt('Recruit '+cur.n+'?',8,95,pc,FB);txt('Special move: '+cur.mv,8,104,NV);
+ [0,1].forEach(i=>{const y=109+i*15,s=rs==i;rr(14,y,132,13,4,s?pc:'#eef0ff',NV);txt((s?'▶ ':'')+(i?'Not yet':'YES! Join the fight'),20,y+9,s?'#fff':NV,FB)})}
+const RF={
+keep(t,c){spr('keep',c,34,68,1.7);const q=Math.min(t/46,1);
+ if(t<46){x.save();x.translate(44+36*q,58-Math.sin(q*3.14)*40);x.rotate(t*.3);R(-6,-7,12,14,'#8a5a2b');R(-6,-3,12,2,'#444');R(-6,3,12,2,'#444');x.restore()}
+ for(let i=0;i<6;i++){const u=t-8-i*9;if(u>0&&u<26){const e=u/26,yy=64-Math.sin(e*3.14)*30;R(50+e*34,yy,5,6,'#ffd54a');R(55+e*34,yy+1,2,3,'#fff')}}
+ if(t>=46){const r=(t-46)/20;x.globalAlpha=Math.max(0,1-r/2);for(let i=0;i<10;i++){const a=i*.63;ci(80+Math.cos(a)*r*22,48+Math.sin(a)*r*18,3,i%2?'#ffe9a8':'#fff')}x.globalAlpha=1}},
+kn(t,c){spr('kn',c,34+Math.min(t,16),70,1.8);
+ if(t>18&&t<58){const y=-46+(t-18)*1.3;ci(80,y+20,18,'rgba(255,240,150,.3)');R(78,y+3,4,40,'#fff');R(72,y,16,3,'#ffd54a');R(79,y-8,2,8,'#a8743a')}
+ if(t>=58){const e=Math.min(1,(t-58)/10);ln(50,20,50+60*e,20+54*e,'#fff',3);ln(110,20,110-60*e,20+54*e,'#fff',3);ci(80,48,(t-58)*1.3,'rgba(255,255,200,'+Math.max(0,.5-(t-58)/80)+')')}},
+bard(t,c){spr('bard',c,34,68,1.8+Math.sin(t/4)*.05);
+ for(let i=0;i<9;i++){const u=t-i*7;if(u>0){const e=Math.min(u/40,1);x.globalAlpha=1-e*.4;txt(i%2?'♪':'♫',48+e*30,62-Math.sin(e*5+i)*16-i*2,['#ff4d8d','#19c3e6','#ffd54a'][i%3],'bold 12px Verdana,sans-serif')}}x.globalAlpha=1;
+ if(t>40){const r=(t-40)%24;x.globalAlpha=1-r/24;x.strokeStyle='#fff';x.lineWidth=2;x.beginPath();x.arc(80,48,8+r*2,0,7);x.stroke();x.globalAlpha=1}},
+dw(t,c){const r=t>14;if(r){x.fillStyle='rgba(200,0,0,'+(.2+.1*Math.sin(t/2))+')';x.fillRect(0,0,160,144)}
+ x.save();x.translate(Math.min(30+t*.6,62)+(r?Math.random()*2-1:0),70);const s=2+Math.min(t,24)/12;x.scale(s,s);med(-8,-8,'dw',r?'#e01010':c);x.restore();
+ if(t>16)txt('RAAAGH!',50+Math.random()*2,22,'#fff','bold 12px Verdana,sans-serif');
+ for(let i=0;i<4;i++){const u=t-44-i*9;if(u>0&&u<10){x.strokeStyle='#fff';x.lineWidth=3;x.beginPath();x.arc(80,48,14+i*5,-2+u*.3+i,-.8+u*.3+i);x.stroke()}}
+ if(t>=74)ci(80,48,(t-74)*1.2,'rgba(255,80,40,'+Math.max(0,.6-(t-74)/40)+')')},
+hood(t,c){x.fillStyle='rgba(0,0,20,.55)';x.fillRect(0,0,160,144);
+ for(let i=0;i<5;i++){const u=t-i*8;if(u>0){const a=i*1.26+t*.03,d=44-Math.min(u,24);x.globalAlpha=.85;spr('hood','#222',80+Math.cos(a)*d,54+Math.sin(a)*d*.6,1.4);x.globalAlpha=1}}
+ for(let i=0;i<8;i++){const u=t-34-i*7;if(u>0&&u<7){const a=i*.8;ln(80-Math.cos(a)*32,48-Math.sin(a)*32,80+Math.cos(a)*32,48+Math.sin(a)*32,'#fff',2)}}
+ if(t>34&&t%8<2)fl(.35)},
+sai(t,c){x.fillStyle='rgba(0,0,0,.35)';x.fillRect(0,0,160,144);const g=t>30,h=Math.min(1,t/30);
+ ci(40,68,12+h*14+Math.sin(t)*2,g?'rgba(255,214,0,.45)':'rgba(120,200,255,.3)');
+ x.save();x.translate(40,70);x.scale(2.2,2.2);person(-8,-8,'#ff8a1d','#111');hair(g?'#ffd54a':'#111');x.restore();
+ if(g&&t%3==0){x.strokeStyle='#fff36b';x.lineWidth=1.5;let lx=40+Math.random()*24-12,ly=36;x.beginPath();x.moveTo(lx,ly);for(let i=0;i<4;i++){lx+=Math.random()*10-5;ly+=9;x.lineTo(lx,ly)}x.stroke()}
+ if(t>50){const w=Math.min(16,(t-50)*.8);ln(56,64,80,48,'#fff36b',w);ln(56,64,80,48,'#fff',w/2);ci(80,48,w+2,'#fff')}
+ if(t==30)fl(.8)},
+wiz(t,c){spr('wiz',c,34,68,1.9);
+ if(t>8&&t<30){const e=(t-8)/22;ci(52+e*28,62-e*14,4+e*4,'#ff6a00');ci(52+e*28,62-e*14,2,'#ffe14a')}
+ if(t>=34&&t<54)for(let i=0;i<5;i++){const e=Math.min(1,(t-34-i*2)/14);if(e>0){const a=52+e*28,b=60-e*10+(i-2)*5;x.fillStyle='#5fd8ff';x.beginPath();x.moveTo(a,b-5);x.lineTo(a+4,b);x.lineTo(a,b+5);x.lineTo(a-4,b);x.fill()}}
+ if(t>=56&&t<72&&t%3){x.strokeStyle='#ffe14a';x.lineWidth=2;x.beginPath();let lx=80,ly=0;x.moveTo(lx,ly);for(let i=0;i<5;i++){lx+=Math.random()*14-7;ly+=10;x.lineTo(lx,ly)}x.lineTo(80,48);x.stroke();ci(80,48,10,'rgba(255,225,74,.4)')}
+ for(let i=0;i<6;i++){const u=t-72-i*4;if(u>0&&u<12){const e=u/12,a=40+i*16,px=a+(80-a)*e,py=-10+58*e;ci(px,py,3,'#ff6a00');ln(px,py,px+(a-80)*.1,py-10,'#ffb000',2)}}},
+arc(t,c){spr('arc',c,34,68,1.8);
+ for(let i=0;i<16;i++){const u=t-6-i*4;if(u>0&&u<16){const e=u/16,a=46+i*4.5,px=a+(80-a)*e,py=-10+58*e;ln(px+(a-80)*.1,py-10,px,py,'#cfa86a',2);R(px-1,py,3,3,'#fff')}}
+ if(t>72){const e=Math.min(1,(t-72)/10);ln(46,66,46+34*e,66-18*e,'#9dff7a',4);ln(46,66,46+34*e,66-18*e,'#fff',1.5);if(e==1)ci(80,48,(t-82)*1.4,'rgba(157,255,122,'+Math.max(0,.6-(t-82)/30)+')')}}};
+function rfx(a,t){x.save();try{RF[a.k](t,a.c)}catch(e){}x.restore();x.globalAlpha=1}
+function rcFx(t){const e=Math.min(1,(t-90)/30);RC.forEach((r,i)=>{const o=(1-e)*(i%2?44:-44),sx=(i%2?136:8)+o,sy=24+(i>>1)*26,cx=sx+8,cy=sy+8,v=t-360;fxF(r,sx,sy,i);
+ if(v>0&&v<200){const p=((v+i*7)%24)/24,tx=80,ty=64,mx=cx+(tx-cx)*p,my=cy+(ty-cy)*p,k=r.k;
+  if(k=='sai'){ln(cx,cy,tx,ty,'#fff36b',3);ln(cx,cy,tx,ty,'#fff',1)}
+  else if(k=='kn'){ln(tx-14,ty-14+p*6,tx+14,ty+14+p*6,'#fff',2);R(mx,my,3,3,'#e6e8f0')}
+  else if(k=='bard')txt('♪',mx,my,r.col,'bold 10px Verdana,sans-serif');
+  else if(k=='dw'){x.strokeStyle='#ff3030';x.lineWidth=2;x.beginPath();x.arc(tx,ty,10+p*8,p*6,p*6+1.5);x.stroke()}
+  else if(k=='hood'){x.save();x.translate(mx,my);x.rotate(v*.5);R(-3,-1,6,2,'#111');R(-1,-3,2,6,'#111');x.restore()}
+  else if(k=='wiz'){ci(mx,my,3,'#c13bd6');ci(mx-(tx-cx)*.05,my-(ty-cy)*.05,2,'#7ae8ff')}
+  else if(k=='arc')ln(mx,my,mx-(tx-cx)*.12,my-(ty-cy)*.12,'#9dff7a',2);
+  else{x.save();x.translate(mx,my);x.rotate(v*.4);R(-3,-4,6,8,'#8a5a2b');x.restore()}
+  if(p>.85)ci(tx,ty,5+(p-.85)*30,'rgba(255,255,255,.7)')}})}
+
+const PL={name:'Hero',g:'boy',skin:'#f1c27d',hair:'#3b2314',out:'shirt',col:'#ffffff',hat:'none',wp:'sword'};
+const OP={g:['boy','girl','other'],skin:['#f9d5b8','#f1c27d','#c68642','#8d5524','#5c3a21'],hair:['#3b2314','#111111','#ffd54a','#c0392b','#ff7ab0','#8a4dff','#eeeeee'],out:['shirt','dress','armor','robe'],col:['#ffffff','#ff4d8d','#19c3e6','#6ad6a3','#ffb000','#8a4dff','#1b1b3a'],hat:['none','cap','crown','wizard','cowboy','helm'],wp:['sword','staff','bow','axe','none']};
+function hero(a,b){const o=PL.out,c=PL.col,S=PL.skin,h=PL.hair;
+ R(a+4,b+13,3,3,NV);R(a+9,b+13,3,3,NV);
+ if(o=='dress'){R(a+3,b+7,10,5,c);R(a+2,b+11,12,3,c)}
+ else if(o=='robe'){R(a+3,b+7,10,8,c);R(a+7,b+7,2,8,'rgba(0,0,0,.2)')}
+ else if(o=='armor'){R(a+3,b+7,10,6,'#aab0c0');R(a+4,b+8,8,2,c);R(a+2,b+7,3,3,'#aab0c0');R(a+11,b+7,3,3,'#aab0c0')}
+ else{R(a+3,b+7,10,6,c);R(a+3,b+7,10,1,'rgba(0,0,0,.15)')}
+ R(a+4,b+1,8,6,S);R(a+5,b+4,2,1,NV);R(a+9,b+4,2,1,NV);R(a+3,b,10,3,h);
+ if(PL.g=='girl'){R(a+3,b+3,2,8,h);R(a+11,b+3,2,8,h)}else if(PL.g=='other'){R(a+3,b+3,2,4,h);R(a+11,b+3,2,4,h)}
+ const t=PL.hat;
+ if(t=='cap'){R(a+3,b-1,10,3,'#ff4d6d');R(a+10,b+2,5,1,'#ff4d6d')}
+ else if(t=='crown'){R(a+4,b-1,8,3,'#ffd54a');R(a+4,b-3,2,2,'#ffd54a');R(a+7,b-3,2,2,'#ffd54a');R(a+10,b-3,2,2,'#ffd54a')}
+ else if(t=='wizard'){R(a+2,b+1,12,2,'#5a2bb0');R(a+4,b-1,8,2,'#5a2bb0');R(a+6,b-4,4,3,'#5a2bb0');R(a+7,b-6,2,2,'#ffd54a')}
+ else if(t=='cowboy'){R(a+1,b+1,14,2,'#8a5a2b');R(a+4,b-2,8,3,'#8a5a2b')}
+ else if(t=='helm'){R(a+3,b-1,10,5,'#aab0c0');R(a+7,b-3,2,3,'#ff4d6d');R(a+5,b+3,6,1,NV)}
+ R(a+12,b+9,2,2,S);const w=PL.wp;
+ if(w=='sword'){R(a+13,b-1,2,11,'#dfe6f0');R(a+12,b+9,4,2,'#ffd54a');R(a+13,b+11,2,3,'#8a5a2b')}
+ else if(w=='staff'){R(a+14,b-3,2,18,'#8a5a2b');R(a+13,b-5,4,4,'#7ae8ff')}
+ else if(w=='bow'){R(a+14,b+1,1,14,'#8a5a2b');R(a+13,b+2,1,2,'#8a5a2b');R(a+13,b+12,1,2,'#8a5a2b');R(a+13,b+3,1,10,'#eee')}
+ else if(w=='axe'){R(a+14,b+1,2,14,'#8a5a2b');R(a+12,b+1,4,5,'#b8bcc8')}}
+const $=i=>document.getElementById(i),ov=$('ov'),HD={};
+const esc=q=>String(q).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
+const fmt=ms=>{const q=ms/1000;return Math.floor(q/60)+':'+(q%60).toFixed(1).padStart(4,'0')};
+function tmDraw(y){if(!T0)return;rr(110,y,48,9,4,'rgba(27,27,58,.85)');txt('TIME '+fmt((T1||Date.now())-T0),114,y+7,'#ffe14a',FB)}
+function show(h){ov.innerHTML='<div class="cd">'+h+'</div>';ov.style.display='flex';mode='ui'}
+function hide(){ov.style.display='none'}
+ov.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+ if(b.dataset.o){PL[b.dataset.o]=b.dataset.v;b.parentNode.querySelectorAll('button').forEach(z=>z.classList.toggle('on',z==b));drawPV()}
+ else if(b.dataset.c){ch=+b.dataset.c;ov.querySelectorAll('[data-c]').forEach(z=>z.classList.toggle('on',z==b))}
+ else if(b.dataset.nm){const nm=b.dataset.nm;ov.querySelectorAll('button').forEach(z=>z.disabled=true);claimName(nm).then(ok=>{if(ok){ME={id:rnd(),name:nm};PL.name=nm;createUI()}else nameUI('Sorry, '+nm+' was just taken. Pick another!')})}
+ else if(HD[b.id])HD[b.id]()});
+// storage: always saved on this device; the shared class db is optional and can never block the game
+const mem={};
+function lget(k){try{return JSON.parse(localStorage.getItem('btg:'+k))}catch(e){return mem[k]||null}}
+function lset(k,v){try{localStorage.setItem('btg:'+k,JSON.stringify(v))}catch(e){mem[k]=v}}
+const tmo=(p,ms)=>Promise.race([Promise.resolve(p),new Promise((_,j)=>setTimeout(j,ms))]);
+async function st(){if(DB===null){try{DB=(typeof claude!='undefined'&&await tmo(claude.use('db'),3000))||0}catch(e){DB=0}}return DB}
+async function lbGet(){let L=lget('lb')||[];try{const d=await st();if(d){const q=await tmo(d.collection('leaderboard').limit(200).get(),4000);L=L.concat(q.docs.map(z=>z.data()))}}catch(e){}
+ const m={};L.forEach(e=>{if(!e||!(e.ms>0))return;const k=String(e.name).toLowerCase();if(!m[k]||m[k].ms>e.ms)m[k]=e});return Object.values(m).sort((p,q)=>p.ms-q.ms)}
+async function lbAdd(){if(!ME||!(T1>T0))return;const e={id:ME.id,name:ME.name,ms:T1-T0,at:Date.now()};
+ const L=lget('lb')||[],i=L.findIndex(z=>z.id==e.id);if(i<0)L.push(e);else if(L[i].ms>e.ms)L[i]=e;lset('lb',L);
+ try{const d=await st();if(d)await tmo(d.doc('leaderboard/'+e.id).set(e),4000)}catch(_){}}
+async function saveAnswer(choice,why){const e={id:ME.id,name:ME.name,choice:choice,why:why,ms:T1-T0,at:Date.now()};lset('resp/'+ME.id,e);
+ try{const d=await st();if(d)await tmo(d.doc('responses/'+ME.id).set(e),4000)}catch(_){}}
+const rnd=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+// screens
+const AD=['Brave','Swift','Clever','Bold','Calm','Lucky','Mighty','Bright','Sneaky','Jolly','Fierce','Noble','Witty','Sunny','Daring','Gentle','Rapid','Cosmic','Fuzzy','Silent','Electric','Golden','Happy','Icy','Zesty','Mellow','Turbo','Wild','Lively','Epic','Snappy','Chill','Radiant','Plucky','Stormy','Cheerful','Nimble','Quirky','Valiant','Dazzling'],NN=['Falcon','Otter','Dragon','Panda','Comet','Tiger','Wizard','Badger','Phoenix','Turtle','Fox','Owl','Knight','Raven','Koala','Lynx','Dolphin','Gecko','Moose','Penguin','Rocket','Hawk','Llama','Bison','Cobra','Walrus','Yeti','Sloth','Eagle','Panther','Beetle','Falcon','Gopher','Narwhal','Pelican','Squid','Zebra','Mantis','Otter','Jaguar'];
+const shuf=a=>a.slice().sort(()=>Math.random()-.5);
+// names are first-come-first-served: remembered on this device, and shared through the class db when this page is allowed to write to it
+const nk=n=>String(n).toLowerCase().replace(/[^a-z0-9]+/g,'-');
+async function takenNames(){const T=new Set((lget('names')||[]).map(nk));
+ try{(await lbGet()).forEach(e=>T.add(nk(e.name)))}catch(e){}
+ try{const d=await st();if(d){const q=await tmo(d.collection('names').limit(500).get(),3000);q.docs.forEach(z=>{const v=z.data();if(v&&v.name&&v.owner)T.add(nk(v.name))})}}catch(e){}
+ return T}
+async function claimName(n){const k=nk(n),L=lget('names')||[];if(L.map(nk).includes(k))return false;
+ let ok=true;
+ try{const d=await st();if(d){const r=d.doc('names/'+k),h=rnd(),g=await tmo(r.acquire({holder:h,ttlMs:5000}),3000);
+  if(!g.acquired)ok=false;else{const q=await tmo(r.get(),3000);if(q.exists&&q.data()&&q.data().owner)ok=false;else await tmo(r.set({name:n,owner:h,at:Date.now()}),3000)}}}catch(e){}
+ if(!ok)return false;
+ const old=lget('mine');if(old&&old!=n)await releaseName(old);
+ L.push(n);lset('names',L);lset('mine',n);return true}
+async function releaseName(n){if((lget('lb')||[]).some(e=>nk(e.name)==nk(n)))return;
+ lset('names',(lget('names')||[]).filter(z=>nk(z)!=nk(n)));
+ try{const d=await st();if(d){const r=d.doc('names/'+nk(n)),q=await tmo(r.get(),3000);if(q.exists)await tmo(r.delete(),3000)}}catch(e){}}
+function lbReveal(){lbGet().then(L=>{const b=$('lb');if(b&&L.length)b.style.display=''}).catch(()=>{})}
+async function nameUI(msg){show('<h2>Bridge the Gap</h2><p class="sm" style="text-align:center">Finding free names...</p>');
+ const T=await takenNames(),all=[];AD.forEach(w=>NN.forEach(z=>{const n=w+' '+z;if(!T.has(nk(n)))all.push(n)}));
+ const pick=[...new Set(shuf(all))].slice(0,8);
+ show('<h2>Bridge the Gap</h2><p style="text-align:center">Pick your hero name:</p>'+(msg?'<div class="er">'+esc(msg)+'</div>':'')+(pick.length?pick.map(n=>'<button data-nm="'+esc(n)+'">'+esc(n)+'</button>').join(''):'<p>Every name is taken!</p>')+'<button id="sh" class="sm">Shuffle names</button><button id="lb" style="display:none">View leaderboard</button><p class="sm">Each name can only be used by one player.</p>');
+ HD.sh=()=>nameUI();HD.lb=()=>lbUI(nameUI);lbReveal()}
+function drawPV(){const q=$('pv');if(!q)return;const o=x;try{x=q.getContext('2d');x.setTransform(6,0,0,6,0,0);x.imageSmoothingEnabled=false;x.clearRect(0,0,20,20);hero(2,5)}finally{x=o}}
+function createUI(){const lab={g:'Gender',skin:'Skin',hair:'Hair',out:'Clothes',col:'Color',hat:'Hat',wp:'Weapon'};
+ let h='<h2>Create your hero</h2><p class="sm" style="text-align:center">Playing as <b>'+esc(ME.name)+'</b></p><canvas id="pv" width="120" height="120" style="width:120px;height:120px;align-self:center;border-radius:12px;background:#ffd58a;border:3px solid #1b1b3a"></canvas>';
+ for(const k in OP)h+='<div class="rw"><b style="width:58px;font-size:12px">'+lab[k]+'</b>'+OP[k].map(v=>{const sw=k=='skin'||k=='hair'||k=='col';return '<button class="'+(sw?'sw ':'')+(PL[k]==v?'on':'')+'" data-o="'+k+'" data-v="'+v+'"'+(sw?' style="background:'+v+'"':'')+'>'+(sw?'':v)+'</button>'}).join('')+'</div>';
+ show(h+'<button id="st">Start adventure</button><button id="lb" style="display:none">View leaderboard</button><button id="cn" class="sm">Change name</button>');
+ drawPV();HD.lb=()=>lbUI(createUI);HD.cn=async()=>{try{await releaseName(ME.name)}catch(e){}nameUI()};lbReveal();
+ HD.st=()=>{PL.name=ME.name;hide();mode='title'}}
+async function lbUI(back){show('<h2>Leaderboard</h2><p class="sm">Loading...</p>');let L=[];try{L=await lbGet()}catch(e){}
+ show('<h2>Fastest heroes</h2>'+(L.length?'<table>'+L.slice(0,15).map((e,i)=>'<tr'+(ME&&e.id==ME.id?' style="font-weight:bold"':'')+'><td>'+(i+1)+'</td><td>'+esc(e.name)+'</td><td>'+fmt(e.ms)+'</td></tr>').join('')+'</table>':'<p>No times yet.</p>')+'<button id="bk">Back</button>');HD.bk=back}
+let ch=-1;
+const EQ=[["Fully fund LCFF and raise taxes","Pay for every district's LCFF funding with higher taxes on large properties and incomes."],["Share property taxes across districts","Pool part of local property taxes so rich and poor districts start closer to equal."],["Boost Title I and require public reports","Ask Congress for more Title I money and make schools publicly report how every dollar is spent."]];
+function endUI(){ch=-1;show('<h2>What should happen to the town?</h2><p class="sm">Pick a plan, then explain your thinking in your own words.</p>'+EQ.map((q,i)=>'<button data-c="'+i+'"><b>'+q[0]+'</b><br><span class="sm">'+q[1]+'</span></button>').join('')+'<textarea id="why" rows="4" placeholder="Why this plan? Who benefits, what could go wrong? (30+ characters)"></textarea><div class="er" id="er"></div><button id="sub">Submit</button>');
+ HD.sub=async()=>{const w=$('why').value.trim(),er=$('er');if(ch<0){er.textContent='Choose a plan first.';return}if(w.length<30){er.textContent='Please write at least 30 characters.';return}
+  er.textContent='Saving...';try{await tmo(saveAnswer(EQ[ch][0],w),2500)}catch(_){}lbUI(()=>toTown(1))}}
+function toTown(f){hide();mode='walk';loc='town';M=TM;N=TN;X=18;Y=5;PX=X;PY=Y;pxf=X*16;pyf=Y*16;TR=[[18,5],[17,5],[16,5],[15,5],[14,5],[13,5],[12,5],[11,5],[10,5],[9,5]];RC.forEach((r,j)=>{r.fx=TR[j+1][0]*16;r.fy=TR[j+1][1]*16});
+ if(f){B.E=B.R=B.C=B.I=0;seq='';secret=0;TN.forEach(n=>{n.c=0;n.t=0});t1='THE TOWN IS QUIET...';t2='Talk to everyone again';toast=240}}
+mode='ui';nameUI();
+let lastT=0,acc=0;
+function frame(ts){requestAnimationFrame(frame);acc+=Math.min(100,ts-(lastT||ts));lastT=ts;
+ try{let n=0;while(acc>=16.5&&n++<4){update();acc-=16.667}if(n>=4)acc=0;draw()}
+ catch(e){console.error(e);if(mode=='boss'&&bs=='anim'&&an)an.t=999;if(x.reset)x.reset();else x.setTransform(1,0,0,1,0,0);x.scale(2,2);x.imageSmoothingEnabled=false}}
+requestAnimationFrame(frame);
+</script></body></html>
